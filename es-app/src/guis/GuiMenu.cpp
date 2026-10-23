@@ -349,6 +349,15 @@ void GuiMenu::openResetOptions()
 		});
 	}
 
+	#if defined(BATTERYPLUS)
+		s->addEntry(_("RESET BATTERYPLUS CALIBRATION"), true, [window] {
+		window->pushGui(new GuiMsgBox(window, _("ARE YOU SURE?"), _("YES"),
+			[] {
+			Utils::Platform::runSystemCommand("/usr/bin/run \"/usr/bin/factoryreset batteryplus\"", "", nullptr);
+			}, _("NO"), nullptr));
+		});
+	#endif
+
 	s->addEntry(_("FACTORY RESET"), true, [window] {
 	window->pushGui(new GuiMsgBox(window, _("WARNING: YOUR DATA AND ALL OTHER CONFIGURATIONS WILL BE RESET TO DEFAULTS!\n\nIF YOU WANT TO KEEP YOUR SETTINGS MAKE A BACKUP AND SAVE IT ON AN EXTERNAL DRIVE BEFORE RUNING THIS OPTION!\n\nEJECT YOUR GAME CARD BEFORE PROCEEDING!\n\nRESET SYSTEM AND RESTART?"), _("YES"),
 		[] {
@@ -1953,6 +1962,19 @@ void GuiMenu::openSystemSettings()
               bool rocknixscreenshotenabled = rocknix_screenshot_enabled->getState();
                      SystemConf::getInstance()->set("rocknix.screenshot.enabled", rocknixscreenshotenabled ? "1" : "0");
       });
+
+	  // Per game/core/emu hide cursor
+	  if (Utils::Platform::GetEnv("UI_SERVICE").find("sway") != std::string::npos) {
+		auto rocknixHideCursor = std::make_shared<SwitchComponent>(mWindow);
+		bool rocknixHideCursorValue = SystemConf::getInstance()->get("rocknix.sway.hide_cursor") == "1";
+		rocknixHideCursor->setState(SystemConf::getInstance()->getBool("rocknix.sway.hide_cursor"));
+		std::string swayHideCursorHelpText = _("Hide the cursor after a short period of inactivity.");
+		s->addWithDescription(_("HIDE CURSOR"), swayHideCursorHelpText, rocknixHideCursor);
+		rocknixHideCursor->setOnChangedCallback([rocknixHideCursor] {
+			bool rocknixHideCursorValue = rocknixHideCursor->getState();
+			SystemConf::getInstance()->set("rocknix.sway.hide_cursor", rocknixHideCursorValue ? "1" : "0");
+		});
+	  }
 #endif
 	// KODI SETTINGS
 #ifdef _ENABLE_KODI_
@@ -2412,7 +2434,7 @@ void GuiMenu::openSystemSettings()
 		dtbOverlayItem(mWindow, s, "custom");
 	}
 
-#if defined(AMD64) || defined(RK3326) || defined(RK3566) || defined(RK3588) || defined(RK3399) || defined(SM6115) || defined(SM8250) || defined(H700)
+#if defined(AMD64) || defined(H700) || defined(RK3326) || defined(RK3566) || defined(RK3588) || defined(RK3399) || defined(S922X) || defined(SM6115) || defined(SM8250)
 	// Allow user control over how the device sleeps - only show for devices with real suspend enabled
 	s->addGroup(_("SUSPEND"));
 	auto optionsSleep = std::make_shared<OptionListComponent<std::string> >(mWindow, _("DEVICE SUSPEND MODE"), false);
@@ -3410,6 +3432,14 @@ void GuiMenu::openSystemOptionsConfiguration(Window* mWindow, std::string config
 		mangohud->addRange({ {("DEFAULT"), "" }, { _("ENABLED"), "1" },{ _("DISABLED") , "0" } }, SystemConf::getInstance()->get(configName + ".rocknix.mangohud.enabled"));
 		guiSystemOptions->addWithLabel(_("MANGOHUD OVERLAY"), mangohud);
 		guiSystemOptions->addSaveFunc([mangohud, configName] { SystemConf::getInstance()->set(configName + ".rocknix.mangohud.enabled", mangohud->getSelected()); });
+	}
+
+	// Per game/core/emu sway hide cursor
+	if (Utils::Platform::GetEnv("UI_SERVICE").find("sway") != std::string::npos) {
+		auto rocknixHideCursor = std::make_shared<OptionListComponent<std::string>>(mWindow, _("HIDE_CURSOR"));
+		rocknixHideCursor->addRange({ {("DEFAULT"), "" }, { _("ENABLED"), "1" },{ _("DISABLED") , "0" } }, SystemConf::getInstance()->get(configName + ".rocknix.sway.hide_cursor"));
+		guiSystemOptions->addWithLabel(_("HIDE CURSOR"), rocknixHideCursor);
+		guiSystemOptions->addSaveFunc([rocknixHideCursor, configName] { SystemConf::getInstance()->set(configName + ".rocknix.sway.hide_cursor", rocknixHideCursor->getSelected()); });
 	}
 #endif
 
